@@ -16,12 +16,32 @@ async function main() {
   const userId = process.env.COMPOSIO_USER_ID || 'anselmotech';
   const composio = new Composio({ apiKey: key, allowTracking: false });
 
+  // 1) Reaproveita a Auth Config do Instagram do projeto (ou cria uma gerenciada pelo Composio).
+  let authConfigId = process.env.COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID || '';
+  try {
+    if (!authConfigId) {
+      const list = await composio.authConfigs.list({ toolkit: 'instagram' });
+      authConfigId = list?.items?.[0]?.id || '';
+    }
+    if (!authConfigId) {
+      const created = await composio.authConfigs.create('instagram', { type: 'use_composio_managed_auth' });
+      authConfigId = created.id;
+      console.log('Auth Config do Instagram criada no projeto.');
+    } else {
+      console.log('Usando a Auth Config do Instagram que já existe no projeto.');
+    }
+  } catch (e) {
+    console.error(`Não foi possível obter/criar a Auth Config do Instagram: ${e.message}`);
+    return fail();
+  }
+
+  // 2) Gera o link de conexão (endpoint connected_accounts/link, exigido pelo Composio).
   let req;
   try {
-    req = await composio.toolkits.authorize(userId, 'instagram');
+    req = await composio.connectedAccounts.link(userId, authConfigId);
   } catch (e) {
     console.error(`Não foi possível iniciar a conexão: ${e.message}`);
-    console.error('Se for erro de permissão (401/403), a API key pode não ter os escopos de auth configs / connected accounts.');
+    console.error('Se for erro de permissão (401/403), a API key precisa de escrita em "Connected accounts".');
     return fail();
   }
   if (!req.redirectUrl) {
