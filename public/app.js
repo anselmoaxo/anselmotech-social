@@ -444,14 +444,18 @@ function renderEditor() {
   $('#drawer').innerHTML = `<div class="drawer-panel" role="dialog" aria-modal="true" aria-label="Editor de post">
     <div class="drawer-head">
       <input id="e-title" value="${esc(d.title)}" aria-label="Título" ${locked ? 'disabled' : ''} />
-      <span class="badge ${d.publish.state}">${PSTATE_LABEL[d.publish.state]}</span>
       <button class="btn sm ghost" id="e-close" aria-label="Fechar">✕</button>
     </div>
+    ${publishRail(d.publish)}
     <div class="tabs">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${editor.tab === k ? 'active' : ''}">${l}</button>`).join('')}</div>
-    <div class="drawer-body" id="e-body">${locked ? '<div class="notice warn">Publicação em andamento: edição bloqueada até o resultado.</div>' : ''}${TAB_RENDER[editor.tab](d, locked)}</div>
+    <div class="drawer-work">
+      <div class="drawer-body" id="e-body">${locked ? '<div class="notice warn">Publicação em andamento: edição bloqueada até o resultado.</div>' : ''}${TAB_RENDER[editor.tab](d, locked)}</div>
+      ${feedPreview(d)}
+    </div>
     <div class="drawer-foot">
       <button class="btn primary" id="e-save" ${locked ? 'disabled' : ''}>Salvar rascunho</button>
       <button class="btn" id="e-copy">Copiar legenda</button>
+      <span class="dirty" id="e-dirty" hidden>Alterações não salvas</span>
       <span class="spacer"></span>
       <button class="btn ghost" id="e-dup">Duplicar</button>
       <button class="btn danger" id="e-del" ${locked ? 'disabled' : ''}>Excluir</button>
@@ -460,7 +464,7 @@ function renderEditor() {
   $('#e-close').onclick = () => closeEditor();
   root.onclick = (e) => { if (e.target === root) closeEditor(); };
   $$('[data-tab]', root).forEach((b) => (b.onclick = () => { collect(); editor.tab = b.dataset.tab; renderEditor(); }));
-  $('#e-title').oninput = (e) => { d.title = e.target.value; editor.dirty = true; };
+  $('#e-title').oninput = (e) => { d.title = e.target.value; editor.dirty = true; updatePreview(); };
   $('#e-save').onclick = saveDraft;
   $('#e-copy').onclick = () => { collect(); copy(buildCaption(d), 'Legenda'); };
   $('#e-dup').onclick = async () => {
@@ -470,9 +474,66 @@ function renderEditor() {
     if (!window.confirm('Excluir este post do app? (Não afeta o Instagram.)')) return;
     try { await api(`/api/posts/${d.id}`, { method: 'DELETE' }); state.posts = state.posts.filter((p) => p.id !== d.id); closeEditor(true); toast('Excluído do app.', 'ok'); } catch (e) { toast(e.message, 'err'); }
   };
-  root.oninput = (e) => { if (e.target.dataset.f) { editor.dirty = true; updateCounters(); } };
+  root.oninput = (e) => { if (e.target.dataset.f) { editor.dirty = true; collect(); updateCounters(); updatePreview(); } };
   TAB_BIND[editor.tab]?.(d, root);
   updateCounters();
+  updatePreview();
+}
+
+// Trilho de etapas: mesma linguagem de nós e fios do pipeline do painel.
+const RAIL = [['rascunho', 'Rascunho'], ['agendado', 'Agendado'], ['publicando', 'Publicando'], ['publicado', 'Publicado']];
+function publishRail(pub) {
+  const at = pub.state === 'erro' ? 2 : RAIL.findIndex(([k]) => k === pub.state);
+  const note = pub.state === 'agendado' ? `Sai em ${fmtDT(pub.scheduledAt)}`
+    : pub.state === 'publicando' ? `Agora: ${stepText(pub.step)}`
+    : pub.state === 'erro' ? 'Não foi publicado. Veja o erro na aba Mídia e publicação.'
+    : pub.state === 'publicado' ? `Publicado em ${fmtDT(pub.publishedAt)}` : 'Nada vai ao ar sem a sua confirmação.';
+  const items = RAIL.map(([k, label], i) => {
+    const cls = pub.state === 'erro' && i === 2 ? 'bad' : i < at ? 'done' : i === at ? (pub.state === 'publicado' ? 'done now' : 'now') : 'todo';
+    return `${i ? `<li class="rail-wire ${i <= at ? 'on' : ''} ${pub.state === 'publicando' && i === 2 ? 'flowing' : ''}" aria-hidden="true"></li>` : ''}<li class="rail-node ${cls}" ${i === at ? 'aria-current="step"' : ''}><i></i>${pub.state === 'erro' && i === 2 ? 'Erro' : label}</li>`;
+  }).join('');
+  return `<div class="rail-bar"><ol class="rail" aria-label="Etapa da publicação">${items}</ol><span class="rail-note small ${pub.state === 'erro' ? 'bad' : 'muted'}">${esc(note)}</span></div>`;
+}
+
+// Prévia fixa ao lado do formulário. A mídia só renderiza ao abrir/trocar (evita recarregar vídeo a cada tecla).
+const FOLD = 125; // o feed do Instagram mostra cerca de 125 caracteres antes de "mais"
+function feedPreview(d) {
+  const u = (d.mediaUrls || [])[0];
+  const media = u ? `<div class="pv-media">${mediaTag(u)}${(d.mediaUrls || []).length > 1 ? `<span class="pv-count">1/${d.mediaUrls.length}</span>` : ''}</div>` : '<div class="pv-media empty-media">Sem mídia. Adicione na aba Mídia e publicação.</div>';
+  return `<aside class="pv" aria-label="Prévia no feed">
+    <div class="pv-frame">
+      <div class="pv-head"><img src="/logo.svg" width="22" height="22" alt="" /><b>@anselmo.tech</b><span class="spacer"></span><span class="dim small">${esc(formatLabel(d.format))}</span></div>
+      ${media}
+      <div class="pv-cap" id="pv-cap"></div>
+    </div>
+    <p class="pv-legend small muted" id="pv-legend"></p>
+  </aside>`;
+}
+function updatePreview() {
+  if (!editor) return;
+  const d = editor.draft;
+  const dirty = $('#e-dirty');
+  if (dirty) dirty.hidden = !editor.dirty;
+  const cap = $('#pv-cap');
+  if (!cap) return;
+  if (d.format === 'stories') {
+    cap.textContent = 'Stories não mostram legenda.';
+    cap.className = 'pv-cap dim';
+    $('#pv-legend').textContent = '';
+    return;
+  }
+  const full = buildCaption(d);
+  cap.className = 'pv-cap';
+  if (!full) { cap.innerHTML = '<span class="dim">Sem legenda.</span>'; $('#pv-legend').textContent = ''; return; }
+  if (full.length <= FOLD) {
+    cap.innerHTML = `<span>${esc(full)}</span>`;
+    $('#pv-legend').textContent = `Legenda inteira visível (${full.length} de ${FOLD} letras antes do “mais”).`;
+    return;
+  }
+  // corta na última palavra inteira antes do limite
+  const cut = full.lastIndexOf(' ', FOLD) > FOLD * 0.6 ? full.lastIndexOf(' ', FOLD) : FOLD;
+  cap.innerHTML = `<span>${esc(full.slice(0, cut))}</span><span class="pv-fold">… mais</span><span class="pv-rest">${esc(full.slice(cut))}</span>`;
+  $('#pv-legend').textContent = `O feed mostra cerca de ${FOLD} letras. O que está apagado só aparece depois de tocar em “mais”. Coloque o gancho antes da linha.`;
 }
 
 // Lê os campos do formulário para o rascunho em memória.
@@ -574,6 +635,7 @@ function bindAi(d, root) {
   $$('[data-apply]', root).forEach((b) => (b.onclick = () => {
     Object.assign(d, JSON.parse(b.dataset.apply));
     editor.dirty = true;
+    updatePreview();
     toast('Aplicado ao rascunho (lembre de salvar).', 'ok');
   }));
   $$('[data-tag]', root).forEach((c) => (c.onclick = () => {
@@ -581,6 +643,7 @@ function bindAi(d, root) {
     d.hashtags = d.hashtags.includes(t) ? d.hashtags.filter((x) => x !== t) : [...d.hashtags, t];
     c.classList.toggle('on', d.hashtags.includes(t));
     editor.dirty = true;
+    updatePreview();
   }));
   $$('[data-tag]', root).forEach((c) => c.classList.toggle('on', d.hashtags.includes(c.dataset.tag)));
 }
@@ -698,20 +761,28 @@ async function startPublishFlow(mode, scheduledLocal) {
   const pv = r.preview;
   const title = { agora: 'Publicar agora', agendar: 'Agendar publicação', teste: 'Testar formato (não publica)' }[mode];
   const media = pv?.mediaUrls?.length ? `<div class="ph-media">${pv.media.map((m) => (m.kind === 'video' ? `<video src="${esc(m.url)}" controls playsinline preload="metadata"></video>` : `<img src="${esc(m.url)}" alt="" referrerpolicy="no-referrer" />`)).join('') || pv.mediaUrls.map((u) => mediaTag(u)).join('')}</div>` : '<div class="empty" style="border:0">Sem mídia</div>';
+  const reach = { agora: 'Vai ao ar em segundos', agendar: 'Vai ao ar no horário marcado', teste: 'Não vai ao ar' }[mode];
   openModal(`
+    <div class="cf-strip ${mode === 'teste' ? 'off' : 'live'}">${reach}</div>
     <h2>${title}</h2>
     ${r.errors?.length ? `<div class="notice err"><b>Não é possível continuar:</b><ul>${r.errors.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
     ${r.warnings?.length ? `<div class="notice warn"><b>Atenção:</b><ul>${r.warnings.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
     ${pv ? `<div class="phone"><div class="ph-head"><img src="/logo.svg" width="24" height="24" alt="" />${esc(pv.account || '@anselmo.tech')}<span class="spacer"></span><span class="muted small">${esc(pv.formatLabel)}</span></div>${media}${pv.format !== 'stories' ? `<div class="ph-cap">${esc(pv.caption || '(sem legenda)')}</div>` : ''}</div>
       <div class="small"><b>Quando:</b> ${mode === 'teste' ? 'agora (somente teste, sem publicar)' : esc(pv.scheduledHuman || 'agora')}</div>` : ''}
-    ${r.ok ? `<label class="f">Para confirmar, digite <b class="confirm-word">${esc(r.confirmWord)}</b><input class="confirm-input" id="cf-word" autocomplete="off" autocapitalize="characters" /></label>
+    ${r.ok ? `<label class="f">Para confirmar, digite <b class="confirm-word">${esc(r.confirmWord)}</b>
+        <span class="cells" id="cf-cells" aria-hidden="true">${[...r.confirmWord].map((ch) => `<i>${esc(ch)}</i>`).join('')}</span>
+        <input class="confirm-input" id="cf-word" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="${r.confirmWord.length + 4}" /></label>
       <p class="dim small">${mode === 'agora' ? 'A publicação entra na fila do servidor e começa em segundos.' : mode === 'agendar' ? 'O servidor publicará sozinho no horário. Se você editar o conteúdo depois, o agendamento é desfeito.' : 'Será criado um contêiner de mídia no Instagram, que não aparece no perfil e expira em até 24h.'}</p>` : ''}
     <div class="row end"><button class="btn ghost" id="cf-cancel">${r.ok ? 'Cancelar' : 'Fechar'}</button>${r.ok ? `<button class="btn primary" id="cf-go" disabled>${title}</button>` : ''}</div>`);
   $('#cf-cancel').onclick = closeModal;
   if (!r.ok) return;
   const inp = $('#cf-word');
   inp.focus();
-  inp.oninput = () => { $('#cf-go').disabled = inp.value.trim().toUpperCase() !== r.confirmWord; };
+  inp.oninput = () => {
+    const typed = inp.value.trim().toUpperCase();
+    $$('#cf-cells i').forEach((c, i) => { c.className = typed[i] === undefined ? '' : typed[i] === r.confirmWord[i] ? 'ok' : 'bad'; });
+    $('#cf-go').disabled = typed !== r.confirmWord;
+  };
   $('#cf-go').onclick = async (e) => {
     e.target.disabled = true; e.target.textContent = mode === 'teste' ? 'Testando (até 90 s)…' : 'Confirmando…';
     try {
