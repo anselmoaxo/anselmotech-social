@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1B2430" />
+  <title>AnselmoTech Social</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/fonts/bricolage/opsz.css" />
+  <link rel="stylesheet" href="/fonts/plex-sans/400.css" />
+  <link rel="stylesheet" href="/fonts/plex-sans/500.css" />
+  <link rel="stylesheet" href="/fonts/plex-sans/600.css" />
+  <link rel="stylesheet" href="/fonts/plex-mono/400.css" />
+  <link rel="stylesheet" href="/fonts/plex-mono/600.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Navegação">
+      <a class="brand" href="#/painel">
+        <img src="/logo.svg" alt="" width="36" height="36" />
+        <span><b>AnselmoTech</b><small>@anselmo.tech</small></span>
+      </a>
+      <nav class="nav">
+        <a href="#/painel" data-route="painel"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg><span>Painel</span></a>
+        <a href="#/conteudo" data-route="conteudo"><svg viewBox="0 0 24 24"><path d="M4 4h4v16H4zm6 0h4v10h-4zm6 0h4v13h-4z"/></svg><span>Conteúdo</span></a>
+        <a href="#/calendario" data-route="calendario"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zm-2 8h14v9H5z"/></svg><span>Calendário</span></a>
+        <a href="#/resultados" data-route="resultados"><svg viewBox="0 0 24 24"><path d="M3 20h18v2H3zm2-8h3v6H5zm5-5h3v11h-3zm5 3h3v8h-3z"/></svg><span>Resultados</span></a>
+        <a href="#/integracao" data-route="integracao"><svg viewBox="0 0 24 24"><path d="M10.6 13.4a1 1 0 0 1 0-1.4l3.5-3.5a3 3 0 1 1 4.2 4.2l-2.1 2.1-1.4-1.4 2.1-2.1a1 1 0 0 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zM13.4 10.6a1 1 0 0 1 0 1.4l-3.5 3.5a3 3 0 1 1-4.2-4.2l2.1-2.1 1.4 1.4-2.1 2.1a1 1 0 1 0 1.4 1.4L12 10.6a1 1 0 0 1 1.4 0z"/></svg><span>Integração</span></a>
+      </nav>
+      <div class="sidebar-foot" id="conn-pill"></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <h1 id="view-title">Painel</h1>
+        <button class="btn primary" id="btn-new" type="button">
+          <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+          <span>Nova ideia</span>
+        </button>
+      </header>
+      <section id="view" class="view" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div id="drawer" class="drawer" hidden></div>
+  <div id="modal" class="modal" hidden></div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
