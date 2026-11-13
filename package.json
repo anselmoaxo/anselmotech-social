@@ -9,7 +9,8 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "test": "node --test --experimental-test-module-mocks test/*.test.js",
-    "check": "for f in server/*.js public/*.js; do node --check $f || exit 1; done && echo ok"
+    "check": "for f in server/*.js public/*.js; do node --check $f || exit 1; done && echo ok",
+    "contas": "node scripts/listar-contas.js"
   },
   "engines": {
     "node": ">=20"
