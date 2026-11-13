@@ -57,8 +57,11 @@ export const NOT_AVAILABLE = [
 let client = null;
 let cachedAccount = null; // { id, at }
 
+export const isConsumerKey = () => API_KEY.startsWith('ck_');
+const CONSUMER_KEY_MSG = 'A COMPOSIO_API_KEY começa com "ck_": essa é a chave de consumidor (usada por clientes MCP, como o conector do Claude). O app precisa da API key de um PROJETO de desenvolvedor (Settings > Project Settings > API Keys, no platform.composio.dev). Crie um projeto, conecte o Instagram nele e rode "npm run contas".';
+
 export function isConfigured() {
-  return Boolean(API_KEY && USER_ID);
+  return Boolean(API_KEY && USER_ID) && !isConsumerKey();
 }
 
 function getClient() {
@@ -141,7 +144,7 @@ function isUncertain(err) {
 
 async function execute(slug, args) {
   if (!isConfigured()) {
-    throw new IntegrationError('nao_configurado', 'Composio não configurado: defina COMPOSIO_API_KEY e COMPOSIO_USER_ID no arquivo .env.', 503);
+    throw new IntegrationError('nao_configurado', isConsumerKey() ? CONSUMER_KEY_MSG : 'Composio não configurado: defina COMPOSIO_API_KEY e COMPOSIO_USER_ID no arquivo .env.', 503);
   }
   let res;
   try {
@@ -187,6 +190,7 @@ export function writeConfirmed(slug, args, confirmation) {
 }
 
 export async function status() {
+  if (isConsumerKey()) return { configured: false, connected: false, code: 'chave_consumidor', message: CONSUMER_KEY_MSG };
   if (!isConfigured()) {
     return { configured: false, connected: false, message: 'Defina COMPOSIO_API_KEY e COMPOSIO_USER_ID no .env para ligar a integração.' };
   }

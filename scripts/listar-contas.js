@@ -9,6 +9,13 @@ if (!key) {
   process.exit(1);
 }
 
+if (key.startsWith('ck_')) {
+  console.error('Essa chave começa com "ck_": é a chave de CONSUMIDOR (para clientes MCP), não a de projeto.');
+  console.error('Pegue a API key de um projeto em platform.composio.dev > Settings > Project Settings > API Keys,');
+  console.error('conecte o Instagram dentro desse projeto e rode "npm run contas" de novo.');
+  process.exit(1);
+}
+
 const url = 'https://backend.composio.dev/api/v3/connected_accounts?toolkit_slugs=instagram&limit=50';
 let res;
 try {
