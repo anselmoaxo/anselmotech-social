@@ -68,7 +68,7 @@ npm start                # http://127.0.0.1:3000
 
 ### Variáveis do `.env`
 - `COMPOSIO_API_KEY`: chave do projeto no painel do Composio.
-- `COMPOSIO_USER_ID` e `COMPOSIO_INSTAGRAM_ACCOUNT_ID`: depois de colocar a API key no `.env`, rode `npm run contas`. O comando lista as contas do Instagram do seu projeto e imprime as duas linhas prontas para colar. A tela **Integração** do app mostra se a conexão foi encontrada. Se a conexão que você fez pelo conector do Claude não aparecer no projeto da sua chave, conecte o Instagram nesse projeto pelo painel do Composio.
+- `COMPOSIO_USER_ID` e `COMPOSIO_INSTAGRAM_ACCOUNT_ID`: depois de colocar a API key no `.env`, rode `npm run contas`. O comando lista as contas do Instagram do seu projeto e imprime as duas linhas prontas para colar. Se ainda não houver conta conectada no projeto, rode `npm run conectar`: ele gera o link de autorização da Meta, espera você autorizar e imprime as linhas. A tela **Integração** do app mostra se a conexão foi encontrada. Se a conexão que você fez pelo conector do Claude não aparecer no projeto da sua chave, conecte o Instagram nesse projeto pelo painel do Composio.
 - `COMPOSIO_INSTAGRAM_ACCOUNT_ID` (opcional): fixa a conta conectada (`ca_...`).
 - `COMPOSIO_INSTAGRAM_VERSION` (opcional, recomendado): fixa a versão do toolkit. Sem ela, o app usa a mais recente.
 - `ANTHROPIC_API_KEY` (opcional): sugestões com Claude. Sem ela, um gerador local simples entra no lugar, e a interface avisa qual fonte foi usada.

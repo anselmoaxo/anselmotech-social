@@ -10,7 +10,8 @@
     "dev": "node --watch server/index.js",
     "test": "node --test --experimental-test-module-mocks test/*.test.js",
     "check": "for f in server/*.js public/*.js; do node --check $f || exit 1; done && echo ok",
-    "contas": "node scripts/listar-contas.js"
+    "contas": "node scripts/listar-contas.js",
+    "conectar": "node scripts/conectar-instagram.js"
   },
   "engines": {
     "node": ">=20"
